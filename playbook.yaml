@@ -1,53 +1,52 @@
 ---
 - name: Setup EC2 instance
   hosts: all
-  become: yes
-
+  become: true
   tasks:
     - name: Update all packages
       yum:
-        name: '*'
+        name: "*"
         state: latest
+      register: update_result
+      retries: 5
+      delay: 30
+      until: update_result is succeeded
 
     - name: Install SSM Agent
       yum:
-        name: https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+        name: "https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm"
         state: present
-
-    - name: Start SSM Agent
-      service:
-        name: amazon-ssm-agent
-        state: started
-        enabled: yes
+      retries: 5
+      delay: 30
+      until: install_ssm is succeeded
 
     - name: Install CloudWatch Agent
       yum:
-        name: https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+        name: "https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm"
         state: present
+      register: install_cloudwatch
+      retries: 5
+      delay: 30
+      until: install_cloudwatch is succeeded
 
     - name: Start CloudWatch Agent
-      command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a start
+      command: sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a start
 
-    - name: Check CloudWatch Agent status
-      command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status
-      register: cloudwatch_status
-    - debug:
-        var: cloudwatch_status.stdout
+    - name: Check CloudWatch Agent Status
+      command: sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status
 
-    - name: Install AWS Inspector Agent
-      get_url:
-        url: https://inspector-agent.amazonaws.com/linux/latest/install
-        dest: /tmp/install
-    - name: Run AWS Inspector Agent install script
-      command: bash /tmp/install
+    - name: Install AWS Inspector
+      command: |
+        curl -O https://inspector-agent.amazonaws.com/linux/latest/install
+        sudo bash install
 
     - name: Install Docker
       yum:
-        name: docker
+        name: "docker"
         state: present
 
-    - name: Start Docker service
-      service:
+    - name: Start Docker
+      systemd:
         name: docker
         state: started
         enabled: yes
