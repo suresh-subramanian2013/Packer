@@ -1,52 +1,47 @@
 ---
-- name: Setup EC2 instance
+- name: This playbook is used to install the packages
   hosts: all
   become: true
+
   tasks:
-    - name: Update all packages
+    - name: Update the Packages
       yum:
-        name: "*"
+        name: '*'
         state: latest
-      register: update_result
-      retries: 5
-      delay: 30
-      until: update_result is succeeded
 
-    - name: Install SSM Agent
+    - name: Install required packages
       yum:
-        name: "https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm"
-        state: present
-      retries: 5
-      delay: 30
-      until: install_ssm is succeeded
+        name:
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+        state: latest
 
-    - name: Install CloudWatch Agent
+    - name: Install docker
       yum:
-        name: "https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm"
-        state: present
-      register: install_cloudwatch
-      retries: 5
-      delay: 30
-      until: install_cloudwatch is succeeded
-
-    - name: Start CloudWatch Agent
-      command: sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a start
-
-    - name: Check CloudWatch Agent Status
-      command: sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status
-
-    - name: Install AWS Inspector
-      command: |
-        curl -O https://inspector-agent.amazonaws.com/linux/latest/install
-        sudo bash install
-
-    - name: Install Docker
-      yum:
-        name: "docker"
-        state: present
-
-    - name: Start Docker
-      systemd:
         name: docker
-        state: started
-        enabled: yes
+        update_cache: yes
+        state: latest
+
+    - name: Install Git
+      yum:
+        name: git
+        state: latest
+
+    - name: Install SSM
+      yum:
+       name: https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+       state: present
+      
+    - name: Install cloudwatch agent
+      yum:
+        name: https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+        state: present
+
+    - name: Download AWS Inspector agent installer
+      get_url:
+        url: "https://inspector-agent.amazonaws.com/linux/latest/install"
+        dest: /tmp/aws_inspector_agent_installer
+
+    - name: Install AWS Inspector agent installer
+      shell: sudo bash /tmp/aws_inspector_agent_installer
